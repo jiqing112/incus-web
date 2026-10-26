@@ -1,0 +1,24 @@
+# 构建产物
+/build/
+/frontend/dist/
+# handler/dist 由构建脚本从 frontend/dist 同步而来（go:embed 需要目录存在）
+/handler/dist/*
+!/handler/dist/.gitkeep
+
+# Go
+*.exe
+*.test
+*.out
+
+# 运行数据（远程镜像索引缓存等）
+/data/
+
+# Node
+node_modules/
+
+# 本地工具与编辑器
+.workbuddy-ai/
+.vscode/
+.idea/
+.DS_Store
+*.log

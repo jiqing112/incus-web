@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2338bdf8'/%3E%3Cstop offset='1' stop-color='%232563eb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cg fill='none' stroke='white' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M16 5.5l7 4v7l-7 4-7-4v-7z'/%3E%3Cpath d='M9 9.5l7 4 7-4M16 13.5v7'/%3E%3Cpath d='M9.5 17.5l-2.5 1.4v4.6l5 2.9 2.6-1.5'/%3E%3Cpath d='M22.5 17.5l2.5 1.4v4.6l-5 2.9-2.6-1.5'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="IncusPanel — 容器与虚拟机可视化管理面板" />
+    <title>IncusPanel · 容器与虚拟机管理面板</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 早期错误捕获（开发诊断）：模块脚本执行前的报错也能收到
+      window.__errs = [];
+      window.addEventListener('error', function (e) {
+        window.__errs.push('E: ' + e.message + ' @ ' + (e.filename || '').slice(-40) + ':' + e.lineno);
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        window.__errs.push('P: ' + String(e.reason && e.reason.stack ? e.reason.stack : e.reason).slice(0, 400));
+      });
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

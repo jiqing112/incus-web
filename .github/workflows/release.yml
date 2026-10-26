@@ -1,0 +1,133 @@
+name: Release
+
+# 推送 v* 标签时自动：构建前端 → 同步进 handler/dist（go:embed）→
+# 交叉编译 Linux amd64/arm64 与 Windows amd64 → 打包发布到 GitHub Releases
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            ext: ''
+            archive: tar.gz
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            ext: ''
+            archive: tar.gz
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            ext: .exe
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Embed frontend (sync dist -> handler/dist)
+        shell: bash
+        run: |
+          rm -rf handler/dist
+          mkdir -p handler/dist
+          cp -r frontend/dist/. handler/dist/
+
+      - name: Build binary
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release
+          BIN="incus-web-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath \
+            -ldflags "-s -w -X main.Version=${TAG}" \
+            -o "release/${BIN}" \
+            .
+
+      - name: Pack (tar.gz / zip)
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd release
+          BIN="incus-web-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            powershell -NoProfile -Command "Compress-Archive -Path '${BIN}' -DestinationPath 'incus-web-${TAG}-windows-amd64.zip' -Force"
+          else
+            tar -czf "${BIN}.tar.gz" "${BIN}"
+          fi
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: release/incus-web-*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: release
+        run: |
+          sha256sum incus-web-* > incus-web-${{ github.ref_name }}-checksums.txt
+          cat incus-web-${{ github.ref_name }}-checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: IncusPanel ${{ github.ref_name }}
+          body: |
+            单文件部署：下载对应平台压缩包，解压后直接运行即可。
+
+            | 平台 | 文件 |
+            | --- | --- |
+            | Linux x86_64 | `incus-web-${{ github.ref_name }}-linux-amd64.tar.gz` |
+            | Linux arm64（树莓派 / Graviton） | `incus-web-${{ github.ref_name }}-linux-arm64.tar.gz` |
+            | Windows x86_64（开发/预览） | `incus-web-${{ github.ref_name }}-windows-amd64.zip` |
+
+            Linux 一键安装：
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/jiqing112/incus-web/main/scripts/install.sh | sudo bash
+            ```
+
+            完整部署文档见 [README](https://github.com/jiqing112/incus-web#-部署)。
+          generate_release_notes: true
+          files: release/incus-web-*

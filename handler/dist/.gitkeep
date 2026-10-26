@@ -1,0 +1,2 @@
+# 占位文件：go:embed all:dist 要求目录存在且非空。
+# 真实前端产物由 build.ps1 / CI 从 frontend/dist 同步而来。
