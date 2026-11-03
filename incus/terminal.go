@@ -113,7 +113,7 @@ func createExecSession(instanceName string, cfg TerminalConfig) (opID, fd0Secret
 	}
 
 	bodyBytes, _ := json.Marshal(execBody)
-	req, _ := http.NewRequest("POST", "http://unix/1.0/instances/"+instanceName+"/exec", bytesReader(bodyBytes))
+	req, _ := http.NewRequest("POST", "http://unix/1.0/instances/"+seg(instanceName)+"/exec", bytesReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

@@ -5,7 +5,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 
@@ -71,8 +71,10 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	if strings.HasSuffix(remotePath, "/") {
 		remotePath = remotePath + header.Filename
 	}
-	// 规范化路径（原实现调用了 Clean 却丢弃返回值，等于没做）
-	remotePath = filepath.Clean(remotePath)
+	// 规范化路径：目标是 Linux 容器内的路径，必须用 POSIX 语义的 path.Clean。
+	// 此前用 filepath.Clean，在 Windows 宿主上会把 / 变成 \，
+	// 「/root/a.txt」会退化成字面量文件名「root\a.txt」写入容器根目录。
+	remotePath = path.Clean(remotePath)
 	if !strings.HasPrefix(remotePath, "/") {
 		remotePath = "/" + remotePath
 	}
@@ -109,7 +111,8 @@ func (h *FileHandler) DownloadFile(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	fileName := filepath.Base(filePath)
+	// 远端是 POSIX 路径，统一用 path 包取文件名（Windows 的 filepath 会混淆分隔符）
+	fileName := path.Base(filePath)
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fileName}))
 	if resp.ContentLength > 0 {

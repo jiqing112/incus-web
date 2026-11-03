@@ -26,7 +26,7 @@ type IncusBackupRecord struct {
 // ListBackups 列出实例备份
 func (c *Client) ListBackups(instanceName string) ([]model.BackupInfo, error) {
 	var resp IncusBackupResponse
-	if err := c.Get("/instances/"+instanceName+"/backups?recursion=1", &resp); err != nil {
+	if err := c.Get("/instances/"+seg(instanceName)+"/backups?recursion=1", &resp); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +55,7 @@ func (c *Client) CreateBackup(instanceName string, req model.CreateBackupRequest
 		body["expires_at"] = req.ExpiresAt
 	}
 	var opResp IncusOperationResponse
-	if err := c.Post("/instances/"+instanceName+"/backups", body, &opResp); err != nil {
+	if err := c.Post("/instances/"+seg(instanceName)+"/backups", body, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil
@@ -63,13 +63,13 @@ func (c *Client) CreateBackup(instanceName string, req model.CreateBackupRequest
 
 // DownloadBackup 下载备份文件（返回原始响应体）
 func (c *Client) DownloadBackup(instanceName, backupFile string) (*http.Response, error) {
-	path := "/instances/" + instanceName + "/backups/" + backupFile + "/export"
+	path := "/instances/" + seg(instanceName) + "/backups/" + seg(backupFile) + "/export"
 	return c.GetRaw(path)
 }
 
 // DeleteBackup 删除备份
 func (c *Client) DeleteBackup(instanceName, backupFile string) error {
-	return c.Delete("/instances/"+instanceName+"/backups/"+backupFile, nil)
+	return c.Delete("/instances/"+seg(instanceName)+"/backups/"+seg(backupFile), nil)
 }
 
 // ExportInstance 将实例发布为本地镜像（异步）。

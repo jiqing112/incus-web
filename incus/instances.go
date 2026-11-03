@@ -162,7 +162,7 @@ func (c *Client) GetInstance(name string) (*model.InstanceInfo, error) {
 		Metadata   IncusInstanceRecord `json:"metadata"`
 	}
 	var w wrapper
-	if err := c.Get("/instances/"+name+"?recursion=1", &w); err != nil {
+	if err := c.Get("/instances/"+seg(name)+"?recursion=1", &w); err != nil {
 		return nil, err
 	}
 	rec := w.Metadata
@@ -197,7 +197,7 @@ func (c *Client) GetInstance(name string) (*model.InstanceInfo, error) {
 // GetInstanceState 获取实例运行时状态
 func (c *Client) GetInstanceState(name string) (*model.InstanceState, error) {
 	var resp IncusStateResponse
-	if err := c.Get("/instances/"+name+"/state", &resp); err != nil {
+	if err := c.Get("/instances/"+seg(name)+"/state", &resp); err != nil {
 		return nil, err
 	}
 
@@ -338,7 +338,7 @@ func (c *Client) UpdateInstanceConfig(name string, req model.UpdateInstanceConfi
 	// 必须走 PUT 全量分支；仅 config 变更时 PATCH 同步生效。
 	if req.Devices == nil && req.Description == nil {
 		body := map[string]interface{}{"config": req.Config}
-		if err := c.Patch("/instances/"+name, body, nil); err != nil {
+		if err := c.Patch("/instances/"+seg(name), body, nil); err != nil {
 			return "", err
 		}
 		return "", nil
@@ -349,7 +349,7 @@ func (c *Client) UpdateInstanceConfig(name string, req model.UpdateInstanceConfi
 		Metadata IncusInstanceRecord `json:"metadata"`
 	}
 	var w wrapper
-	if err := c.Get("/instances/"+name+"?recursion=1", &w); err != nil {
+	if err := c.Get("/instances/"+seg(name)+"?recursion=1", &w); err != nil {
 		return "", err
 	}
 	cur := w.Metadata
@@ -388,7 +388,7 @@ func (c *Client) UpdateInstanceConfig(name string, req model.UpdateInstanceConfi
 	}
 
 	var opResp IncusOperationResponse
-	if err := c.Put("/instances/"+name, body, &opResp); err != nil {
+	if err := c.Put("/instances/"+seg(name), body, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil
@@ -420,7 +420,7 @@ func (c *Client) ChangeInstanceState(name string, req model.StateRequest) (strin
 	}
 
 	var opResp IncusOperationResponse
-	if err := c.Put("/instances/"+name+"/state", incusReq, &opResp); err != nil {
+	if err := c.Put("/instances/"+seg(name)+"/state", incusReq, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil

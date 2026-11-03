@@ -125,6 +125,9 @@ export async function pollOperation(
 }
 
 export const api = {
+  /* 认证自检（不依赖 Incus，登录校验用） */
+  authVerify: () => request<{ incus_reachable: boolean }>('GET', '/auth/verify'),
+
   /* 服务器 */
   serverInfo: () => request<ServerInfo>('GET', '/server/info'),
   serverResources: () => request<ServerResources>('GET', '/server/resources'),

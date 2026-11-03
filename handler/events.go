@@ -78,9 +78,13 @@ func (h *EventHandler) GetLogs(c *gin.Context) {
 
 // StreamLogs GET /api/instances/:name/logs/stream (SSE)
 //
-// 实现方式：按固定间隔读取日志文件并只推送新增部分。
-// 之前用 exec + websocket 取流是错误的：非交互 exec 的 fd 0 是 stdin（输出在 fd 1），
-// 且原始字节直接塞进 "data:" 行，日志一换行就会破坏 SSE 帧格式。
+// 实现方式：按固定间隔拉取日志尾部并只推送新增行。
+// - 初始回填与每轮拉取都走 Incus 的 ?lines= 尾部窗口（初始 2000 行、增量 2000 行），
+//   不再每 2 秒重下整个日志文件（长期运行容器的 lxc.log 可能是几十 MB）。
+// - 增量去重：记住上次发送的最后一行，在新尾部中找它最后一次出现的位置，其后即为新增；
+//   找不到（轮转/新增超过窗口）时保守推送整个窗口。
+// - 之前用 exec + websocket 取流是错误的：非交互 exec 的 fd 0 是 stdin（输出在 fd 1），
+//   且原始字节直接塞进 "data:" 行，日志一换行就会破坏 SSE 帧格式。
 func (h *EventHandler) StreamLogs(c *gin.Context) {
 	instanceName := c.Param("name")
 
@@ -89,17 +93,25 @@ func (h *EventHandler) StreamLogs(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
-	full, err := h.client.GetLogs(instanceName, 0)
+	const tailLines = 2000
+
+	full, err := h.client.GetLogs(instanceName, tailLines)
 	if err != nil {
 		writeSSEError(c, err.Error())
 		return
 	}
-	for _, line := range splitLogLines(full) {
+	lines := splitLogLines(full)
+	for _, line := range lines {
 		writeSSELine(c, line)
 	}
 	c.Writer.Flush()
 
-	offset := len(full)
+	// 上次已推送的最后一行（空串表示还没有推送过任何行）
+	lastSent := ""
+	if len(lines) > 0 {
+		lastSent = lines[len(lines)-1]
+	}
+
 	clientGone := c.Request.Context().Done()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -109,20 +121,30 @@ func (h *EventHandler) StreamLogs(c *gin.Context) {
 		case <-clientGone:
 			return
 		case <-ticker.C:
-			cur, err := h.client.GetLogs(instanceName, 0)
+			cur, err := h.client.GetLogs(instanceName, tailLines)
 			if err != nil {
 				writeSSEError(c, err.Error())
 				return
 			}
-			// 日志被轮转/截断时重新从头推送
-			if len(cur) < offset {
-				offset = 0
+			newLines := splitLogLines(cur)
+			start := 0
+			if lastSent != "" {
+				found := -1
+				for i, line := range newLines {
+					if line == lastSent {
+						found = i
+					}
+				}
+				if found >= 0 {
+					start = found + 1
+				}
+				// 找不到：日志被轮转/截断，或窗口内新增超过 tailLines 行——保守重发整个窗口
 			}
-			if len(cur) > offset {
-				for _, line := range splitLogLines(cur[offset:]) {
+			if start < len(newLines) {
+				for _, line := range newLines[start:] {
 					writeSSELine(c, line)
 				}
-				offset = len(cur)
+				lastSent = newLines[len(newLines)-1]
 				c.Writer.Flush()
 			}
 		}

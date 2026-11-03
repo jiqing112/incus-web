@@ -22,10 +22,21 @@ export async function verify(throwOnError = false): Promise<boolean> {
   }
   session.checking = true;
   try {
-    const info = await api.serverInfo();
+    // 登录校验只验证 token 本身（/auth/verify 不依赖 Incus）。
+    // 若复用 /server/info，未安装或未启动 Incus 的全新主机将永远无法登录，
+    // 安装向导也就无从进入；Incus 不可达时放行，由安装向导接管。
+    const res = await api.authVerify();
     session.authed = true;
-    session.serverName = info.environment.server || 'incus';
-    session.serverVersion = info.environment.server_version || '';
+    if (res.incus_reachable) {
+      // 服务器名称/版本仅用于展示，取不到不影响登录状态
+      try {
+        const info = await api.serverInfo();
+        session.serverName = info.environment.server || 'incus';
+        session.serverVersion = info.environment.server_version || '';
+      } catch {
+        /* 忽略 */
+      }
+    }
     return true;
   } catch (e) {
     session.authed = false;

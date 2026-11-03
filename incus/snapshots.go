@@ -23,7 +23,7 @@ type IncusSnapshotRecord struct {
 // ListSnapshots 列出实例所有快照
 func (c *Client) ListSnapshots(instanceName string) ([]model.SnapshotInfo, error) {
 	var resp IncusSnapshotResponse
-	if err := c.Get("/instances/"+instanceName+"/snapshots?recursion=1", &resp); err != nil {
+	if err := c.Get("/instances/"+seg(instanceName)+"/snapshots?recursion=1", &resp); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +49,7 @@ func (c *Client) CreateSnapshot(instanceName string, req model.CreateSnapshotReq
 		body["expires_at"] = req.ExpiresAt
 	}
 	var opResp IncusOperationResponse
-	if err := c.Post("/instances/"+instanceName+"/snapshots", body, &opResp); err != nil {
+	if err := c.Post("/instances/"+seg(instanceName)+"/snapshots", body, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil
@@ -62,7 +62,7 @@ func (c *Client) RenameSnapshot(instanceName, snapshotName, newName string) (str
 		"name": newName,
 	}
 	var opResp IncusOperationResponse
-	if err := c.Post("/instances/"+instanceName+"/snapshots/"+snapshotName, body, &opResp); err != nil {
+	if err := c.Post("/instances/"+seg(instanceName)+"/snapshots/"+seg(snapshotName), body, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil
@@ -79,7 +79,7 @@ func (c *Client) RestoreSnapshot(instanceName, snapshotName string, stateful boo
 		body["stateful"] = true
 	}
 	var opResp IncusOperationResponse
-	if err := c.Put("/instances/"+instanceName, body, &opResp); err != nil {
+	if err := c.Put("/instances/"+seg(instanceName), body, &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil
@@ -88,7 +88,7 @@ func (c *Client) RestoreSnapshot(instanceName, snapshotName string, stateful boo
 // DeleteSnapshot 删除快照（异步）
 func (c *Client) DeleteSnapshot(instanceName, snapshotName string) (string, error) {
 	var opResp IncusOperationResponse
-	if err := c.Delete("/instances/"+instanceName+"/snapshots/"+snapshotName, &opResp); err != nil {
+	if err := c.Delete("/instances/"+seg(instanceName)+"/snapshots/"+seg(snapshotName), &opResp); err != nil {
 		return "", err
 	}
 	return opResp.Operation, nil

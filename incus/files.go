@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +32,7 @@ func ExecLS(instanceName, dirPath string) ([]model.FileInfo, error) {
 		dirPath = "/"
 	}
 
-	url := "http://unix/1.0/instances/" + instanceName + "/files?path=" + url.QueryEscape(dirPath)
+	url := "http://unix/1.0/instances/" + seg(instanceName) + "/files?path=" + url.QueryEscape(dirPath)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("X-Incus-Type", "directory")
 
@@ -104,7 +103,7 @@ type entryStat struct {
 func statEntry(instanceName, filePath string) (entryStat, bool) {
 	client := fileHTTPClient
 
-	u := "http://unix/1.0/instances/" + instanceName + "/files?path=" + url.QueryEscape(filePath)
+	u := "http://unix/1.0/instances/" + seg(instanceName) + "/files?path=" + url.QueryEscape(filePath)
 	req, _ := http.NewRequest("GET", u, nil)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -143,7 +142,7 @@ func statEntry(instanceName, filePath string) (entryStat, bool) {
 func FilePull(instanceName, filePath string) (*http.Response, error) {
 	client := fileHTTPClient
 
-	url := "http://unix/1.0/instances/" + instanceName + "/files?path=" + url.QueryEscape(filePath)
+	url := "http://unix/1.0/instances/" + seg(instanceName) + "/files?path=" + url.QueryEscape(filePath)
 	req, _ := http.NewRequest("GET", url, nil)
 
 	resp, err := client.Do(req)
@@ -162,7 +161,7 @@ func FilePull(instanceName, filePath string) (*http.Response, error) {
 func FilePush(instanceName, remotePath string, file multipart.File) error {
 	client := fileHTTPClient
 
-	url := "http://unix/1.0/instances/" + instanceName + "/files?path=" + url.QueryEscape(remotePath)
+	url := "http://unix/1.0/instances/" + seg(instanceName) + "/files?path=" + url.QueryEscape(remotePath)
 	req, _ := http.NewRequest("POST", url, file)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("X-Incus-Type", "file")
@@ -184,7 +183,7 @@ func FilePush(instanceName, remotePath string, file multipart.File) error {
 func FileDelete(instanceName, remotePath string) error {
 	client := fileHTTPClient
 
-	url := "http://unix/1.0/instances/" + instanceName + "/files?path=" + url.QueryEscape(remotePath)
+	url := "http://unix/1.0/instances/" + seg(instanceName) + "/files?path=" + url.QueryEscape(remotePath)
 	req, _ := http.NewRequest("DELETE", url, nil)
 
 	resp, err := client.Do(req)
@@ -205,7 +204,7 @@ func FileDelete(instanceName, remotePath string) error {
 func (c *Client) GetLogs(instanceName string, lines int) (string, error) {
 	var lastErr error
 	for _, logName := range []string{"lxc.log", "qemu.log"} {
-		url := "/instances/" + instanceName + "/logs/" + logName
+		url := "/instances/" + seg(instanceName) + "/logs/" + logName
 		if lines > 0 {
 			url += fmt.Sprintf("?lines=%d", lines)
 		}
@@ -226,9 +225,4 @@ func (c *Client) GetLogs(instanceName string, lines int) (string, error) {
 		lastErr = fmt.Errorf("未找到实例日志")
 	}
 	return "", lastErr
-}
-
-// GetConfigFolder 获取指定实例的路径
-func GetConfigFolder(instanceName string) string {
-	return filepath.Join("/var/lib/incus/containers", instanceName)
 }

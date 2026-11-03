@@ -50,7 +50,7 @@ func (c *Client) GetProfile(name string) (*model.ProfileInfo, error) {
 		Metadata   IncusProfileRecord `json:"metadata"`
 	}
 	var w wrapper
-	if err := c.Get("/profiles/"+name, &w); err != nil {
+	if err := c.Get("/profiles/"+seg(name), &w); err != nil {
 		return nil, err
 	}
 	rec := w.Metadata
@@ -88,10 +88,10 @@ func (c *Client) UpdateProfile(name string, req model.UpdateProfileRequest) erro
 		"config":      req.Config,
 		"devices":     req.Devices,
 	}
-	return c.Put("/profiles/"+name, incusReq, nil)
+	return c.Put("/profiles/"+seg(name), incusReq, nil)
 }
 
 // DeleteProfile 删除 profile
 func (c *Client) DeleteProfile(name string) error {
-	return c.Delete("/profiles/"+name, nil)
+	return c.Delete("/profiles/"+seg(name), nil)
 }

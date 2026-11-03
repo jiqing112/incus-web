@@ -69,7 +69,7 @@ func (c *Client) GetStoragePool(name string) (*model.StoragePoolInfo, error) {
 		Metadata   IncusStoragePoolRecord `json:"metadata"`
 	}
 	var w wrapper
-	if err := c.Get("/storage-pools/"+name, &w); err != nil {
+	if err := c.Get("/storage-pools/"+seg(name), &w); err != nil {
 		return nil, err
 	}
 	rec := w.Metadata
@@ -91,13 +91,13 @@ func (c *Client) CreateStoragePool(req model.CreateStoragePoolRequest) error {
 
 // DeleteStoragePool 删除存储池
 func (c *Client) DeleteStoragePool(name string) error {
-	return c.Delete("/storage-pools/"+name, nil)
+	return c.Delete("/storage-pools/"+seg(name), nil)
 }
 
 // ListStorageVolumes 列出存储池中的所有卷
 func (c *Client) ListStorageVolumes(poolName string) ([]model.StorageVolumeInfo, error) {
 	var resp IncusStorageVolumeResponse
-	if err := c.Get("/storage-pools/"+poolName+"/volumes?recursion=1", &resp); err != nil {
+	if err := c.Get("/storage-pools/"+seg(poolName)+"/volumes?recursion=1", &resp); err != nil {
 		return nil, err
 	}
 
@@ -116,10 +116,10 @@ func (c *Client) ListStorageVolumes(poolName string) ([]model.StorageVolumeInfo,
 
 // CreateStorageVolume 创建存储卷
 func (c *Client) CreateStorageVolume(poolName string, req model.CreateStorageVolumeRequest) error {
-	return c.Post("/storage-pools/"+poolName+"/volumes", req, nil)
+	return c.Post("/storage-pools/"+seg(poolName)+"/volumes", req, nil)
 }
 
 // DeleteStorageVolume 删除存储卷
 func (c *Client) DeleteStorageVolume(poolName, volType, volName string) error {
-	return c.Delete("/storage-pools/"+poolName+"/volumes/"+volType+"/"+volName, nil)
+	return c.Delete("/storage-pools/"+seg(poolName)+"/volumes/"+seg(volType)+"/"+seg(volName), nil)
 }

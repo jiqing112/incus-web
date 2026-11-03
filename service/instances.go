@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -48,8 +49,8 @@ func (s *InstanceService) UpdateInstanceConfig(name string, req model.UpdateInst
 //
 // Incus 的 DELETE /1.0/instances/{name}?force=true 对运行中实例仍然返回
 // 400 "Instance is running"（与 CLI --force 行为不同），所以必须先 stop 再 delete。
-// 这里先直接尝试删除（已停止的实例一步到位），命中 "Instance is running" 时
-// 发 stop 并轮询重试删除，避免把「运行中无法删除」暴露给用户。
+// 已停止的实例直接删除一步到位；运行中的实例先发 stop 并把 stop 的 operation
+// 返回给调用方轮询，等停稳后的删除放到后台执行——避免 HTTP 请求被阻塞最长一分钟。
 func (s *InstanceService) DeleteInstance(name string, force bool) (string, error) {
 	opURL, err := s.client.DeleteInstance(name, force)
 	if err == nil {
@@ -61,21 +62,34 @@ func (s *InstanceService) DeleteInstance(name string, force bool) (string, error
 		return "", err
 	}
 
-	if _, serr := s.client.ChangeInstanceState(name, model.StateRequest{Action: "stop", Force: true, Timeout: 60}); serr != nil {
+	stopURL, serr := s.client.ChangeInstanceState(name, model.StateRequest{Action: "stop", Force: true, Timeout: 60})
+	if serr != nil {
 		return "", serr
 	}
-	// stop 是异步操作，需要等实例真正停下后再删
-	for i := 0; i < 60; i++ {
+	go s.stopThenDelete(name, force)
+	return stopURL, nil
+}
+
+// stopThenDelete 等待实例真正停止后执行删除（在后台 goroutine 中运行）。
+// 完成或失败都广播实例事件，驱动前端列表刷新。
+func (s *InstanceService) stopThenDelete(name string, force bool) {
+	// 最多等 90 秒；期间实例被外部删掉（查询报错）也直接进入删除尝试
+	for i := 0; i < 90; i++ {
 		time.Sleep(time.Second)
-		if opURL, err = s.client.DeleteInstance(name, force); err == nil {
-			s.broker.PublishInstance(name, "delete", "deleted")
-			return opURL, nil
+		info, err := s.client.GetInstance(name)
+		if err != nil {
+			break
 		}
-		if !strings.Contains(err.Error(), "Instance is running") {
-			return "", err
+		if info.Status == "Stopped" {
+			break
 		}
 	}
-	return "", err
+	if _, err := s.client.DeleteInstance(name, force); err != nil {
+		log.Printf("delete instance %s failed after stop: %v", name, err)
+		s.broker.PublishInstance(name, "delete", "error")
+		return
+	}
+	s.broker.PublishInstance(name, "delete", "deleted")
 }
 
 // ChangeInstanceState 变更实例状态

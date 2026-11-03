@@ -72,7 +72,7 @@ func (c *Client) GetNetwork(name string) (*model.NetworkInfo, error) {
 		Metadata   IncusNetworkRecord `json:"metadata"`
 	}
 	var w wrapper
-	if err := c.Get("/networks/"+name, &w); err != nil {
+	if err := c.Get("/networks/"+seg(name), &w); err != nil {
 		return nil, err
 	}
 	rec := w.Metadata
@@ -100,7 +100,7 @@ func (c *Client) GetNetwork(name string) (*model.NetworkInfo, error) {
 // GetNetworkLeases 获取网络 DHCP 租约
 func (c *Client) GetNetworkLeases(name string) ([]model.NetworkLease, error) {
 	var resp IncusNetworkLeaseResponse
-	if err := c.Get("/networks/"+name+"/leases", &resp); err != nil {
+	if err := c.Get("/networks/"+seg(name)+"/leases", &resp); err != nil {
 		return nil, err
 	}
 
@@ -135,10 +135,10 @@ func (c *Client) UpdateNetwork(name string, req model.UpdateNetworkRequest) erro
 		"config":      req.Config,
 		"description": req.Description,
 	}
-	return c.Put("/networks/"+name, incusReq, nil)
+	return c.Put("/networks/"+seg(name), incusReq, nil)
 }
 
 // DeleteNetwork 删除网络
 func (c *Client) DeleteNetwork(name string) error {
-	return c.Delete("/networks/"+name, nil)
+	return c.Delete("/networks/"+seg(name), nil)
 }

@@ -14,6 +14,7 @@ import (
 	"incus-web/handler"
 	"incus-web/incus"
 	"incus-web/middleware"
+	"incus-web/model"
 	"incus-web/service"
 
 	"github.com/gin-gonic/gin"
@@ -101,6 +102,16 @@ func main() {
 	api := r.Group("/api")
 	api.Use(middleware.Auth())
 	{
+		// 0. 认证自检：只校验 token，不依赖 Incus 是否已安装/启动。
+		// 未装 Incus 时登录也必须能通过，前端据此引导进入安装向导；
+		// 若复用 /server/info 做登录校验，daemon 不存在时用户会被永远挡在登录页。
+		api.GET("/auth/verify", func(c *gin.Context) {
+			c.JSON(http.StatusOK, model.ApiResponse{
+				Code: 200,
+				Data: gin.H{"incus_reachable": client.Ping()},
+			})
+		})
+
 		// 11. 服务器信息
 		api.GET("/server/info", serverH.GetServerInfo)
 		api.GET("/server/resources", serverH.GetServerResources)

@@ -8,10 +8,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"incus-web/config"
 )
+
+// seg 对拼进 Incus API 路径的名称（实例/快照/存储池等）做单段转义，
+// 防止含 / ? # 等字符的名称造成路径歧义或请求到错误的资源。
+func seg(s string) string { return url.PathEscape(s) }
 
 // Client Incus HTTP 客户端
 type Client struct {
@@ -230,6 +235,14 @@ func (c *Client) Delete(path string, result interface{}) error {
 		return json.NewDecoder(resp.Body).Decode(result)
 	}
 	return nil
+}
+
+// Ping 探测 Incus API 是否可达（不解析业务数据）。
+// 用于登录自检：未安装或未启动 incusd 时返回 false，前端据此引导进入安装向导，
+// 而不是像 /server/info 那样直接报 500 把用户挡在登录页。
+func (c *Client) Ping() bool {
+	var resp map[string]interface{}
+	return c.Get("", &resp) == nil
 }
 
 // GetWebSocketURL 获取 WebSocket 的完整 URL（替换 http://unix 为 ws://unix）
